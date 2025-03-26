@@ -53,6 +53,21 @@ public:
      * @return 对应位置的32位RGB颜色值
      */
     uint32_t wheel(byte wheelPos);
+
+    /**
+     * @brief 使LED灯带呈现呼吸灯效果
+     * @param color 32位RGB颜色值
+     * @param periodMs 完成一次呼吸周期的时间（毫秒）
+     */
+    void breathing(uint32_t color, uint32_t periodMs);
+    
+    /**
+     * @brief 调整颜色亮度
+     * @param color 原始颜色值
+     * @param brightness 亮度值（0-255）
+     * @return 调整亮度后的颜色
+     */
+    uint32_t dimColor(uint32_t color, uint8_t brightness);
 };
 
 #endif

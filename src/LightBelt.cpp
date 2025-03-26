@@ -51,3 +51,37 @@ uint32_t LightBelt::wheel(byte wheelPos) {
     wheelPos -= 170;
     return strip.Color(wheelPos * 3, 255 - wheelPos * 3, 0);
 }
+
+void LightBelt::breathing(uint32_t color, uint32_t periodMs) {
+    uint32_t timeNow = millis();
+    float phase = (timeNow % periodMs) / (float)periodMs;
+    
+    // 使用正弦波产生平滑的呼吸效果
+    // sin值的范围是-1到1，需要映射到0到255的亮度范围
+    float sinValue = sin(phase * 2 * PI);
+    uint8_t brightness = (sinValue + 1.0) * 127.5; // 映射到0-255
+    
+    // 根据亮度调整颜色
+    uint32_t dimmedColor = dimColor(color, brightness);
+    
+    // 应用到所有LED
+    for (uint16_t i = 0; i < totalLeds; i++) {
+        strip.setPixelColor(i, dimmedColor);
+    }
+    strip.show();
+}
+
+uint32_t LightBelt::dimColor(uint32_t color, uint8_t brightness) {
+    // 提取RGB分量
+    uint8_t r = (color >> 16) & 0xFF;
+    uint8_t g = (color >> 8) & 0xFF;
+    uint8_t b = color & 0xFF;
+    
+    // 按比例调整亮度
+    r = (r * brightness) / 255;
+    g = (g * brightness) / 255;
+    b = (b * brightness) / 255;
+    
+    // 重新组合颜色
+    return strip.Color(r, g, b);
+}
