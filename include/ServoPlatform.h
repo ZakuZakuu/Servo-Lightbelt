@@ -76,6 +76,14 @@ public:
      * @param value 0-1023范围的输入值
      */
     void setLayerAngleFromValue(uint8_t layer, int value);
+
+    /**
+     * @brief 使所有层的舵机进行分组往复运动
+     * @details 将舵机分为两组：1,3,5为第一组，2,4,6为第二组
+     *          第一组初始为最小角度，第二组初始为最大角度
+     * @param periodMs 完成一次往复运动的时间（毫秒）
+     */
+    void sweepAlternateGroups(uint32_t periodMs);
 };
 
 #endif
