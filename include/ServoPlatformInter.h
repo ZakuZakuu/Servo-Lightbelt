@@ -18,6 +18,9 @@ private:
     uint8_t servoPins[12];      // 存储每个舵机的引脚
     bool sweepCompleted;    // 添加标记变量，表示一次性扫描是否完成
     uint32_t sweepStartTime;  // 添加扫描开始时间记录
+    bool shrinkCompleted;         // 添加标记变量，表示收缩是否完成
+    uint32_t shrinkStartTime;     // 收缩开始时间
+    uint8_t currentShrinkLayer;   // 当前正在收缩的层
     
     void initPWM();
     void setServoPWM(uint8_t channel, uint16_t pulseWidth);
@@ -82,6 +85,19 @@ public:
      * @param periodMs 完成一次往复运动的时间（毫秒）
      */
     void sweepAlternateGroups(uint32_t periodMs);
+
+    /**
+     * @brief 使舵机平台逐层收缩
+     * @details 先将所有舵机设为最大角度，然后从第一层开始逐层旋转至最小角度
+     * @param totalTimeMs 完成所有层收缩的总时间（毫秒）
+     * @return 如果收缩完成返回true，否则返回false
+     */
+    bool shrinkByLayer(uint32_t totalTimeMs);
+    
+    /**
+     * @brief 重置逐层收缩状态
+     */
+    void resetShrink();
 };
 
 #endif

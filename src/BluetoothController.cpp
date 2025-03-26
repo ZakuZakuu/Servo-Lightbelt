@@ -115,6 +115,32 @@ void BluetoothController::update() {
         } else {
             ((ServoPlatform*)servoPlatform)->sweepAlternateGroups(periodMs);
         }
+    } else if (currentMode == "Shrink") {
+        // 新模式：逐层收缩
+        bool completed;
+        
+        if (useInternalPWM) {
+            completed = ((ServoPlatformInter*)servoPlatform)->shrinkByLayer(6000); // 6秒完成所有层
+        } else {
+            completed = ((ServoPlatform*)servoPlatform)->shrinkByLayer(6000);
+        }
+        
+        // 如果收缩完成，可以添加额外逻辑
+        if (completed) {
+            // 比如重置收缩状态，允许再次执行
+            if (useInternalPWM) {
+                ((ServoPlatformInter*)servoPlatform)->resetShrink();
+            } else {
+                ((ServoPlatform*)servoPlatform)->resetShrink();
+            }
+            
+            // 或者切换到其他模式
+            // currentMode = "Idle";
+        }
+        
+        // 灯光效果可以设置为红色呼吸，表示"收缩"
+        uint32_t redColor = lightBelt->wheel(0); // 红色
+        lightBelt->breathing(redColor, 2000);    // 2秒周期呼吸
     }
     else if (currentMode == "Idle") {
         // Idle模式: 白色呼吸灯效果，所有舵机回到最大角度
@@ -185,7 +211,7 @@ void BluetoothController::processCommand(String command) {
     }
     
     // 预设模式处理
-    if (modeName == "Rainbow" || modeName == "Idle" || modeName == "Heatup") {  // 将"Alternate"改为"Heatup"
+    if (modeName == "Rainbow" || modeName == "Idle" || modeName == "Heatup" || modeName == "Shrink") {  // 将"Alternate"改为"Heatup"
         setPresetMode(modeName);
     }
     // 控制模式处理

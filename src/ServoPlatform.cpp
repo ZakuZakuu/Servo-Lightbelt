@@ -11,6 +11,9 @@ ServoPlatform::ServoPlatform(uint8_t numLayers, uint8_t i2cAddress, uint8_t minA
     
     sweepCompleted = false;
     sweepStartTime = 0;
+    shrinkCompleted = false;
+    shrinkStartTime = 0;
+    currentShrinkLayer = 0;
 }
 
 uint8_t ServoPlatform::scanI2CAddress() {
@@ -239,4 +242,67 @@ void ServoPlatform::sweepAlternateGroups(uint32_t periodMs) {
     for (uint8_t i = 1; i < layers; i += 2) {
         setLayerAngle(i, angle2);
     }
+}
+
+bool ServoPlatform::shrinkByLayer(uint32_t totalTimeMs) {
+    // 如果已经完成，直接返回true
+    if (shrinkCompleted) {
+        return true;
+    }
+    
+    // 第一次调用时初始化
+    if (shrinkStartTime == 0) {
+        shrinkStartTime = millis();
+        currentShrinkLayer = 0;
+        
+        // 先将所有舵机设置为最大角度
+        for (uint8_t layer = 0; layer < layers; layer++) {
+            setLayerAngle(layer, maxAngle);
+        }
+        
+        return false;
+    }
+    
+    // 计算每层分配的时间
+    uint32_t timePerLayer = totalTimeMs / layers;
+    uint32_t elapsedTime = millis() - shrinkStartTime;
+    
+    // 确定当前应该收缩到哪一层
+    uint8_t targetLayer = min((uint8_t)(elapsedTime / timePerLayer), layers);
+    
+    // 收缩新的层（如果有）
+    while (currentShrinkLayer < targetLayer) {
+        setLayerAngle(currentShrinkLayer, minAngle);
+        currentShrinkLayer++;
+    }
+    
+    // 如果是当前层在收缩过程中
+    if (currentShrinkLayer < layers) {
+        // 计算当前层的收缩进度（0-1）
+        float layerProgress = (float)(elapsedTime % timePerLayer) / timePerLayer;
+        
+        // 计算角度
+        float angle = maxAngle - layerProgress * (maxAngle - minAngle);
+        
+        // 设置当前正在收缩的层
+        setLayerAngle(currentShrinkLayer, angle);
+    }
+    
+    // 检查是否全部完成
+    if (targetLayer >= layers && currentShrinkLayer >= layers) {
+        // 确保所有层都已经到达最小角度
+        for (uint8_t layer = 0; layer < layers; layer++) {
+            setLayerAngle(layer, minAngle);
+        }
+        shrinkCompleted = true;
+        return true;
+    }
+    
+    return false;
+}
+
+void ServoPlatform::resetShrink() {
+    shrinkCompleted = false;
+    shrinkStartTime = 0;
+    currentShrinkLayer = 0;
 }
