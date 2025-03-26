@@ -207,3 +207,11 @@ void ServoPlatform::servoSelfTest() {
     
     Serial.println("舵机自检完成！");
 }
+
+void ServoPlatform::setLayerAngleFromValue(uint8_t layer, int value) {
+    if (layer >= layers) return;
+    
+    // 将0-1023映射到minAngle-maxAngle
+    int angle = map(constrain(value, 0, 1023), 0, 1023, minAngle, maxAngle);
+    setLayerAngle(layer, angle);
+}

@@ -69,6 +69,13 @@ public:
      * @brief 重置一次性扫描状态
      */
     void resetSweep();
+
+    /**
+     * @brief 设置指定层舵机角度
+     * @param layer 层号（从0开始）
+     * @param value 0-1023范围的输入值
+     */
+    void setLayerAngleFromValue(uint8_t layer, int value);
 };
 
 #endif

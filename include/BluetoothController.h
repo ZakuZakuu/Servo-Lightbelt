@@ -5,6 +5,7 @@
 #include <BluetoothSerial.h>
 #include "LightBelt.h"
 #include "ServoPlatformInter.h"
+#include "ServoPlatform.h"  // 添加外部驱动平台的头文件
 
 /**
  * @class BluetoothController
@@ -21,13 +22,17 @@ class BluetoothController {
 private:
     BluetoothSerial BT;              ///< 蓝牙串口对象
     LightBelt* lightBelt;            ///< 灯带控制器指针
-    ServoPlatformInter* servoPlatform; ///< 舵机平台指针
+    void* servoPlatform;             ///< 舵机平台指针（可以是任意类型）
+    bool useInternalPWM;             ///< 是否使用内部PWM
     String currentMode;              ///< 当前工作模式
     int params[6];                   ///< 存储6个参数值（0-1023）
     uint32_t periodMs;               ///< 动作周期（毫秒）
+    bool isConnected;                ///< 蓝牙连接状态
+    uint32_t lastActivityTime;       ///< 最后一次活动时间
+    uint32_t disconnectTimeout;      ///< 断开连接超时时间（毫秒）
     
     /**
-     * @brief 处理接收到的命令
+     * @brief 处理接收到的命令 
      * @param command 格式为"模式|参数1|参数2|参数3|参数4|参数5|参数6"的命令字符串
      */
     void processCommand(String command);
@@ -50,16 +55,37 @@ private:
      * @details 通过蓝牙发送当前模式和参数信息
      */
     void sendStatus();
+    
+    /**
+     * @brief 处理断开连接状态
+     * @details 设置所有舵机为最小角度，LED为蓝色常亮
+     */
+    void handleDisconnect();
+    
+    /**
+     * @brief 检查蓝牙连接状态
+     * @return 如果蓝牙已连接返回true，否则返回false
+     */
+    bool checkConnection();
 
 public:
     /**
-     * @brief 构造函数
+     * @brief 构造函数 - 使用内部PWM
      * 
      * @param lightBeltPtr 灯带控制器指针
-     * @param servoPlatformPtr 舵机平台指针
+     * @param servoPlatformPtr 内部PWM舵机平台指针
      * @param cycleTimeMs 动作周期（毫秒），默认为5000ms
      */
     BluetoothController(LightBelt* lightBeltPtr, ServoPlatformInter* servoPlatformPtr, uint32_t cycleTimeMs = 5000);
+    
+    /**
+     * @brief 构造函数 - 使用外部舵机驱动
+     * 
+     * @param lightBeltPtr 灯带控制器指针
+     * @param servoPlatformPtr 外部驱动舵机平台指针
+     * @param cycleTimeMs 动作周期（毫秒），默认为5000ms
+     */
+    BluetoothController(LightBelt* lightBeltPtr, ServoPlatform* servoPlatformPtr, uint32_t cycleTimeMs = 5000);
     
     /**
      * @brief 初始化蓝牙模块
@@ -79,6 +105,12 @@ public:
      *   - Follow模式：根据接收参数控制各层舵机角度
      */
     void update();
+    
+    /**
+     * @brief 设置断开连接超时时间
+     * @param timeoutMs 超时时间（毫秒），默认为5000ms
+     */
+    void setDisconnectTimeout(uint32_t timeoutMs = 5000);
 };
 
 #endif

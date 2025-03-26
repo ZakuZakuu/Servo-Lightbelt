@@ -9,16 +9,39 @@
 #include "BluetoothController.h"
 
 /**
- * @brief 构造函数，初始化蓝牙控制器
+ * @brief 构造函数 - 使用内部PWM
  */
 BluetoothController::BluetoothController(LightBelt* lightBeltPtr, ServoPlatformInter* servoPlatformPtr, uint32_t cycleTimeMs)
     : lightBelt(lightBeltPtr), servoPlatform(servoPlatformPtr), periodMs(cycleTimeMs) {
-    currentMode = "Idle";  // 默认模式
+    useInternalPWM = true;
+    currentMode = "Disconnect";  // 初始模式设为Disconnect
     
     // 初始化参数数组
     for (int i = 0; i < 6; i++) {
         params[i] = 512;  // 默认中间位置
     }
+    
+    isConnected = false;
+    lastActivityTime = 0;
+    disconnectTimeout = 5000; // 默认5秒超时
+}
+
+/**
+ * @brief 构造函数 - 使用外部舵机驱动
+ */
+BluetoothController::BluetoothController(LightBelt* lightBeltPtr, ServoPlatform* servoPlatformPtr, uint32_t cycleTimeMs)
+    : lightBelt(lightBeltPtr), servoPlatform(servoPlatformPtr), periodMs(cycleTimeMs) {
+    useInternalPWM = false;
+    currentMode = "Disconnect";  // 初始模式设为Disconnect
+    
+    // 初始化参数数组
+    for (int i = 0; i < 6; i++) {
+        params[i] = 512;  // 默认中间位置
+    }
+    
+    isConnected = false;
+    lastActivityTime = 0;
+    disconnectTimeout = 5000; // 默认5秒超时
 }
 
 /**
@@ -29,40 +52,88 @@ void BluetoothController::begin(const char* deviceName) {
     Serial.print("蓝牙设备已启动，名称: ");
     Serial.println(deviceName);
     Serial.println("等待连接...");
+    
+    // 初始状态为断开连接
+    handleDisconnect();
 }
 
 /**
  * @brief 更新处理蓝牙命令并执行当前模式的动作
  */
 void BluetoothController::update() {
+    // 检查连接状态
+    bool connectionStatus = checkConnection();
+    
+    // 连接状态变化检测
+    if (!isConnected && connectionStatus) {
+        // 从断开状态到已连接状态
+        Serial.println("蓝牙已连接");
+        // 自动切换到Idle模式
+        currentMode = "Idle";
+        Serial.println("自动切换到Idle模式");
+    } else if (isConnected && !connectionStatus) {
+        // 从已连接到断开连接
+        Serial.println("蓝牙连接已断开");
+        currentMode = "Disconnect";
+        handleDisconnect();
+    }
+    
+    // 更新连接状态
+    isConnected = connectionStatus;
+    
+    // 处理蓝牙命令
     if (BT.available()) {
         String command = BT.readStringUntil('\n');
         command.trim();
         Serial.print("收到命令: ");
         Serial.println(command);
         processCommand(command);
+        
+        // 更新活动时间
+        lastActivityTime = millis();
     }
     
-    // 根据当前模式执行相应操作
-    if (currentMode == "Rainbow") {
+    // 根据当前模式和连接状态执行相应操作
+    if (currentMode == "Disconnect") {
+        // 断开连接状态处理
+        handleDisconnect();
+    } else if (currentMode == "Rainbow") {
         lightBelt->rainbowCycle(periodMs);
-        servoPlatform->sweepAllLayers(periodMs, 30.0);
+        
+        // 根据舵机平台类型调用相应的方法
+        if (useInternalPWM) {
+            ((ServoPlatformInter*)servoPlatform)->sweepAllLayers(periodMs, 30.0);
+        } else {
+            ((ServoPlatform*)servoPlatform)->sweepAllLayers(periodMs, 30.0);
+        }
     }
     else if (currentMode == "Idle") {
-        // 蓝色: R=0, G=0, B=255
-        lightBelt->setAllLayersColor(lightBelt->wheel(170));  // 蓝色对应wheel大约170
+        // Idle模式: 白色呼吸灯效果，所有舵机回到最大角度
         
-        // 修改：所有舵机平台同步往复运动，周期设为3秒
-        uint32_t idlePeriodMs = 3000;  // 设置Idle模式的运动周期为3秒
+        // 创建白色 (R=255, G=255, B=255)
+        uint32_t whiteColor = lightBelt->wheel(255);  // 白色
         
-        // 对所有层应用相同的相位（相位差为0），实现统一往复运动
-        servoPlatform->sweepAllLayers(idlePeriodMs, 0.0);
+        // 实现呼吸灯效果
+        lightBelt->breathing(whiteColor, 3000);  // 3秒周期的呼吸效果
+        
+        // 设置所有舵机为最大角度
+        for (uint8_t layer = 0; layer < 3; layer++) { // 假设有3层
+            if (useInternalPWM) {
+                ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 1023);
+            } else {
+                ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, 1023);
+            }
+        }
     }
     else if (currentMode == "Follow") {
         // 在Follow模式下，根据接收到的参数实时设置舵机角度
         for (int i = 0; i < 6; i++) {
             if (i < 3) {  // 假设最多支持6层，但目前只使用3层
-                servoPlatform->setLayerAngleFromValue(i, params[i]);
+                if (useInternalPWM) {
+                    ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(i, params[i]);
+                } else {
+                    ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(i, params[i]);
+                }
             }
         }
     }
@@ -116,6 +187,10 @@ void BluetoothController::processCommand(String command) {
         Serial.print("未知模式: ");
         Serial.println(modeName);
     }
+    
+    // 更新连接状态和活动时间
+    isConnected = true;
+    lastActivityTime = millis();
 }
 
 /**
@@ -168,4 +243,53 @@ void BluetoothController::sendStatus() {
     BT.println(response);
     Serial.print("发送状态: ");
     Serial.println(response);
+}
+
+/**
+ * @brief 检查蓝牙连接状态
+ * 
+ * @return true 如果连接正常
+ * @return false 如果连接已断开
+ */
+bool BluetoothController::checkConnection() {
+    // 在实际连接上有活动
+    if (BT.available()) {
+        lastActivityTime = millis();
+        return true;
+    }
+    
+    // 如果曾经收到过数据但现在超时，认为断开
+    if (isConnected && (millis() - lastActivityTime > disconnectTimeout)) {
+        return false;
+    }
+    
+    // 保持当前连接状态
+    return isConnected;
+}
+
+/**
+ * @brief 处理蓝牙断开连接状态
+ */
+void BluetoothController::handleDisconnect() {
+    // 设置所有舵机为最小角度
+    for (uint8_t layer = 0; layer < 3; layer++) { // 假设有3层
+        if (useInternalPWM) {
+            ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 0);
+        } else {
+            ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, 0);
+        }
+    }
+    
+    // 设置所有LED为蓝色常亮
+    uint32_t blueColor = lightBelt->wheel(170); // 蓝色对应wheel大约170
+    lightBelt->setAllLayersColor(blueColor);
+}
+
+/**
+ * @brief 设置蓝牙断开连接超时时间
+ * 
+ * @param timeoutMs 超时时间（毫秒）
+ */
+void BluetoothController::setDisconnectTimeout(uint32_t timeoutMs) {
+    disconnectTimeout = timeoutMs;
 }
