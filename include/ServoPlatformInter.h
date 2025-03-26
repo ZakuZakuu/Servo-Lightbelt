@@ -16,6 +16,8 @@ private:
     uint16_t maxPulseWidth;    // 最大脉冲宽度（微秒）
     float currentAngles[12];    // 最多支持6层，每层2个舵机
     uint8_t servoPins[12];      // 存储每个舵机的引脚
+    bool sweepCompleted;    // 添加标记变量，表示一次性扫描是否完成
+    uint32_t sweepStartTime;  // 添加扫描开始时间记录
     
     void initPWM();
     void setServoPWM(uint8_t channel, uint16_t pulseWidth);
@@ -52,6 +54,19 @@ public:
      * @param phaseDiff 相邻层之间的相位差（度）
      */
     void sweepAllLayers(uint32_t periodMs, float phaseDiff);
+
+    /**
+     * @brief 使所有层的舵机进行带相位差的往复运动，但仅执行一次
+     * @param periodMs 完成一次往复运动的时间（毫秒）
+     * @param phaseDiff 相邻层之间的相位差（度）
+     * @return 如果运动完成返回true，否则返回false
+     */
+    bool sweepAllLayersOnce(uint32_t periodMs, float phaseDiff);
+    
+    /**
+     * @brief 重置一次性扫描状态
+     */
+    void resetSweep();
 
     /**
      * @brief 设置指定层舵机角度

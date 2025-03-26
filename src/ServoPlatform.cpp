@@ -8,6 +8,9 @@ ServoPlatform::ServoPlatform(uint8_t numLayers, uint8_t i2cAddress, uint8_t minA
     for(int i = 0; i < 16; i++) {
         currentAngles[i] = minAngle;
     }
+    
+    sweepCompleted = false;
+    sweepStartTime = 0;
 }
 
 uint8_t ServoPlatform::scanI2CAddress() {
@@ -65,8 +68,7 @@ void ServoPlatform::begin() {
     pwm.setPWMFreq(200);  // 标准舵机PWM频率
     delay(10);
     
-    // 添加自检程序
-    servoSelfTest();
+    // 移除了自检程序调用
 }
 
 uint16_t ServoPlatform::angleToMicros(uint8_t angle) {
@@ -130,6 +132,54 @@ void ServoPlatform::sweepAllLayers(uint32_t periodMs, float phaseDiff) {
         }
         setLayerAngle(layer, angle);
     }
+}
+
+bool ServoPlatform::sweepAllLayersOnce(uint32_t periodMs, float phaseDiff) {
+    // 如果已经完成，直接返回true
+    if (sweepCompleted) {
+        return true;
+    }
+    
+    // 第一次调用时记录开始时间
+    if (sweepStartTime == 0) {
+        sweepStartTime = millis();
+    }
+    
+    uint32_t elapsedTime = millis() - sweepStartTime;
+    
+    // 检查是否已经完成一个周期
+    if (elapsedTime >= periodMs) {
+        // 完成后确保所有舵机回到初始位置
+        for (uint8_t layer = 0; layer < layers; layer++) {
+            setLayerAngle(layer, minAngle);
+        }
+        sweepCompleted = true;
+        return true;
+    }
+    
+    // 执行一次正常的扫描周期
+    for (uint8_t layer = 0; layer < layers; layer++) {
+        float layerPhaseOffset = (phaseDiff * layer) / 360.0f;
+        float adjustedTime = fmod(elapsedTime + (layerPhaseOffset * periodMs), periodMs);
+        
+        float phase = adjustedTime / (float)periodMs;
+        float angle;
+        
+        if (phase < 0.5) {
+            angle = minAngle + (maxAngle - minAngle) * (phase * 2);
+        } else {
+            angle = maxAngle - (maxAngle - minAngle) * ((phase - 0.5) * 2);
+        }
+        
+        setLayerAngle(layer, angle);
+    }
+    
+    return false;
+}
+
+void ServoPlatform::resetSweep() {
+    sweepCompleted = false;
+    sweepStartTime = 0;
 }
 
 void ServoPlatform::servoSelfTest() {
