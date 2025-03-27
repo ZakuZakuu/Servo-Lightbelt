@@ -177,8 +177,6 @@ void BluetoothController::update() {
 
 /**
  * @brief 处理接收到的命令字符串
- * 
- * @details 解析命令格式，提取模式名称和参数，然后调用相应的处理函数
  */
 void BluetoothController::processCommand(String command) {
     // 解析命令
@@ -208,6 +206,24 @@ void BluetoothController::processCommand(String command) {
     // 处理特殊命令
     if (modeName == "Lookup") {
         sendStatus();
+        return;
+    }
+    
+    // 舵机角度反转命令
+    if (modeName == "ReverseAngle") {
+        if (firstSeparator + 1 < command.length()) {
+            int value = command.substring(firstSeparator + 1).toInt();
+            bool reverse = (value != 0);
+            if (useInternalPWM) {
+                ((ServoPlatformInter*)servoPlatform)->setReverseAngle(reverse);
+            } else {
+                ((ServoPlatform*)servoPlatform)->setReverseAngle(reverse);
+            }
+            Serial.print("舵机角度反转模式: ");
+            Serial.println(reverse ? "开启" : "关闭");
+            String response = "ReverseAngle=" + String(reverse ? "ON" : "OFF");
+            BT.println(response);
+        }
         return;
     }
     

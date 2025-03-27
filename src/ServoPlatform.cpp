@@ -1,4 +1,5 @@
 #include "ServoPlatform.h"
+#include "GlobalConfig.h"
 
 ServoPlatform::ServoPlatform(uint8_t numLayers, uint8_t i2cAddress, uint8_t minAng, uint8_t maxAng)
     : layers(numLayers), minAngle(minAng), maxAngle(maxAng), i2cAddress(i2cAddress) {
@@ -11,6 +12,9 @@ ServoPlatform::ServoPlatform(uint8_t numLayers, uint8_t i2cAddress, uint8_t minA
     
     sweepCompleted = false;
     sweepStartTime = 0;
+    
+    // 从全局配置初始化角度反转状态
+    reverseAngle = REVERSE_SERVO_ANGLE;
 }
 
 uint8_t ServoPlatform::scanI2CAddress() {
@@ -83,6 +87,12 @@ void ServoPlatform::setServoAngle(uint8_t servoNum, uint8_t angle) {
 
 void ServoPlatform::setLayerAngle(uint8_t layer, uint8_t angle) {
     if(layer >= layers) return;
+    
+    // 如果设置了角度反转，则反转角度
+    if(reverseAngle) {
+        angle = maxAngle - (angle - minAngle);
+    }
+    
     setServoAngle(layer * 2, angle);      // 设置该层第一个舵机
     setServoAngle(layer * 2 + 1, angle);  // 设置该层第二个舵机
 }
@@ -213,5 +223,14 @@ void ServoPlatform::setLayerAngleFromValue(uint8_t layer, int value) {
     
     // 将0-1023映射到minAngle-maxAngle
     int angle = map(constrain(value, 0, 1023), 0, 1023, minAngle, maxAngle);
+    
     setLayerAngle(layer, angle);
+}
+
+void ServoPlatform::setReverseAngle(bool reverse) {
+    reverseAngle = reverse;
+}
+
+bool ServoPlatform::getReverseAngle() const {
+    return reverseAngle;
 }

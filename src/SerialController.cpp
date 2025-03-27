@@ -216,6 +216,22 @@ void SerialController::processCommand() {
         return;
     }
     
+    // 舵机角度反转命令
+    if (strcmp(token, "ReverseAngle") == 0) {
+        token = strtok(NULL, "|");
+        if (token) {
+            bool reverse = (parseIntParam(token) != 0);
+            if (useInternalPWM) {
+                ((ServoPlatformInter*)servoPlatform)->setReverseAngle(reverse);
+            } else {
+                ((ServoPlatform*)servoPlatform)->setReverseAngle(reverse);
+            }
+            Serial.print("Servo angle reverse mode: ");
+            Serial.println(reverse ? "ON" : "OFF");
+        }
+        return;
+    }
+    
     // 预设模式
     if (strcmp(token, "Rainbow") == 0 || strcmp(token, "Idle") == 0 || strcmp(token, "Heatup") == 0) {
         setPresetMode(token);

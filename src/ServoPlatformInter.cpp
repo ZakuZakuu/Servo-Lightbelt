@@ -1,4 +1,5 @@
 #include "ServoPlatformInter.h"
+#include "GlobalConfig.h"
 
 // 定义舵机引脚，避开GPIO5
 // 每层两个舵机，编号对应关系：
@@ -29,6 +30,9 @@ ServoPlatformInter::ServoPlatformInter(uint8_t numLayers, uint8_t minAng, uint8_
     
     sweepCompleted = false;
     sweepStartTime = 0;
+    
+    // 从全局配置初始化角度反转状态
+    reverseAngle = REVERSE_SERVO_ANGLE;
 }
 
 void ServoPlatformInter::initPWM() {
@@ -55,6 +59,12 @@ void ServoPlatformInter::setServoAngle(uint8_t servoNum, uint8_t angle) {
 
 void ServoPlatformInter::setLayerAngle(uint8_t layer, uint8_t angle) {
     if(layer >= layers) return;
+    
+    // 如果设置了角度反转，则反转角度
+    if(reverseAngle) {
+        angle = maxAngle - (angle - minAngle);
+    }
+    
     setServoAngle(layer * 2, angle);
     setServoAngle(layer * 2 + 1, angle);
 }
@@ -192,4 +202,12 @@ void ServoPlatformInter::setLayerAngleFromValue(uint8_t layer, int value) {
     // 将0-1023映射到minAngle-maxAngle
     int angle = map(constrain(value, 0, 1023), 0, 1023, minAngle, maxAngle);
     setLayerAngle(layer, angle);
+}
+
+void ServoPlatformInter::setReverseAngle(bool reverse) {
+    reverseAngle = reverse;
+}
+
+bool ServoPlatformInter::getReverseAngle() const {
+    return reverseAngle;
 }

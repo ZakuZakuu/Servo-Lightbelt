@@ -4,17 +4,12 @@
 #include <ServoPlatform.h>
 #include <BluetoothController.h>
 #include <SerialController.h>
+#include "GlobalConfig.h"
 
 #define LED_PIN 5
 #define LAYER_COUNT 6
 #define LEDS_PER_LAYER 66
 #define CYCLE_TIME 5000  // 5秒周期
-
-// 选择舵机驱动方式: true使用ESP32内置PWM，false使用外置PCA9685
-#define USE_INTERNAL_PWM false
-
-// 选择通信方式: true使用蓝牙通信，false使用串口通信
-#define USE_BLUETOOTH false
 
 LightBelt belt(LED_PIN, LAYER_COUNT, LEDS_PER_LAYER);
 
@@ -38,6 +33,12 @@ void setup() {
     
     Serial.println("Starting initialization...");
     belt.begin();
+    
+    // 设置舵机角度反转状态
+    platform.setReverseAngle(REVERSE_SERVO_ANGLE);
+    Serial.print("Servo angle reverse mode: ");
+    Serial.println(REVERSE_SERVO_ANGLE ? "ON" : "OFF");
+    
     platform.begin();
     
     // 初始化控制器

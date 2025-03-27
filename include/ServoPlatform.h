@@ -20,6 +20,7 @@ private:
     uint8_t i2cAddress;  // 添加I2C地址成员变量
     bool sweepCompleted;    // 添加标记变量，表示一次性扫描是否完成
     uint32_t sweepStartTime;  // 添加扫描开始时间记录
+    bool reverseAngle;          // 添加是否反转角度的标志
 
     uint16_t angleToMicros(uint8_t angle);
     void setServoAngle(uint8_t servoNum, uint8_t angle);
@@ -76,6 +77,18 @@ public:
      * @param value 0-1023范围的输入值
      */
     void setLayerAngleFromValue(uint8_t layer, int value);
+    
+    /**
+     * @brief 设置是否反转舵机角度
+     * @param reverse true反转角度，false正常角度
+     */
+    void setReverseAngle(bool reverse);
+    
+    /**
+     * @brief 获取舵机角度反转状态
+     * @return 舵机角度是否反转
+     */
+    bool getReverseAngle() const;
 };
 
 #endif
