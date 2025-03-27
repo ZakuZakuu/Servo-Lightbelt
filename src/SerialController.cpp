@@ -99,6 +99,9 @@ void SerialController::update() {
     else if (modeEquals("Heatup")) {
         executeHeatupMode();
     }
+    else if (modeEquals("Cooldown")) {
+        executeCooldownMode();
+    }
     else if (modeEquals("Follow")) {
         // 实时控制舵机角度
         for (int i = 0; i < 3; i++) {
@@ -200,6 +203,101 @@ void SerialController::executeHeatupMode() {
 }
 
 /**
+ * @brief 执行Cooldown模式
+ * @details 从最高层开始，每层依次由最大角度变为最小角度，灯光同步由亮变暗
+ */
+void SerialController::executeCooldownMode() {
+    static uint8_t* pCurrentLayer = getCooldownStatePtr();
+    static uint32_t* pStartTime = getCooldownStartTimePtr();
+    
+    // 获取当前层数(索引从0开始)
+    uint8_t currentLayer = *pCurrentLayer;
+    const uint8_t totalLayers = 3;  // 假设有3层舵机
+    const uint32_t layerCooldownTime = 5000;  // 每层冷却时间5秒
+    const uint32_t orangeColor = 0xFF8800;  // 橙黄色
+    
+    // 如果是第一次执行或刚刚重置
+    if (currentLayer == 0 && *pStartTime == 0) {
+        // 设置所有舵机为最大角度
+        for (uint8_t layer = 0; layer < totalLayers; layer++) {
+            if (useInternalPWM) {
+                ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 1023);
+            } else {
+                ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, 1023);
+            }
+        }
+        
+        // 设置所有灯为橙黄色最亮
+        for (uint8_t layer = 0; layer < totalLayers; layer++) {
+            lightBelt->setLayerColor(layer, orangeColor);
+        }
+        
+        // 记录开始时间
+        *pStartTime = millis();
+        Serial.println("Cooldown mode started - all layers set to maximum");
+    }
+    
+    // 如果当前层有效
+    if (currentLayer < totalLayers) {
+        // 计算当前层冷却的进度 (0.0 - 1.0)
+        uint32_t elapsedTime = millis() - *pStartTime;
+        float progress = min(1.0f, (float)elapsedTime / layerCooldownTime);
+        
+        // 从最高层开始冷却，即索引反向
+        uint8_t layer = totalLayers - 1 - currentLayer;
+        
+        // 计算当前角度 (从最大值逐渐减小到最小值)
+        int angleValue = 1023 * (1.0f - progress);
+        
+        // 设置当前层舵机角度
+        if (useInternalPWM) {
+            ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, angleValue);
+        } else {
+            ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, angleValue);
+        }
+        
+        // 计算亮度值（由最亮变为最暗）
+        uint8_t brightness = 255 * (1.0f - progress);
+        
+        // 设置当前层灯带亮度
+        uint32_t dimmedColor = lightBelt->dimColor(orangeColor, brightness);
+        lightBelt->setLayerColor(layer, dimmedColor);
+        
+        // 如果当前层完成冷却
+        if (progress >= 1.0f) {
+            // 确保完全冷却到最小值
+            if (useInternalPWM) {
+                ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 0);
+            } else {
+                ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, 0);
+            }
+            
+            // 确保灯光完全变暗
+            lightBelt->setLayerColor(layer, 0); // 完全熄灭
+            
+            // 移至下一层
+            (*pCurrentLayer)++;
+            *pStartTime = millis();
+            
+            if (*pCurrentLayer < totalLayers) {
+                Serial.print("Cooling down layer ");
+                Serial.println(totalLayers - *pCurrentLayer);
+            }
+        }
+    } else {
+        // 所有层都已冷却完毕，切换回Idle模式
+        Serial.println("Cooldown completed, switching to Idle mode");
+        
+        // 重置Cooldown状态以便下次使用
+        *pCurrentLayer = 0;
+        *pStartTime = 0;
+        
+        // 切换到Idle模式
+        setPresetMode("Idle");
+    }
+}
+
+/**
  * @brief 处理命令
  */
 void SerialController::processCommand() {
@@ -233,7 +331,8 @@ void SerialController::processCommand() {
     }
     
     // 预设模式
-    if (strcmp(token, "Rainbow") == 0 || strcmp(token, "Idle") == 0 || strcmp(token, "Heatup") == 0) {
+    if (strcmp(token, "Rainbow") == 0 || strcmp(token, "Idle") == 0 || 
+        strcmp(token, "Heatup") == 0 || strcmp(token, "Cooldown") == 0) {
         setPresetMode(token);
         return;
     }
@@ -268,6 +367,14 @@ void SerialController::setPresetMode(const char* modeName) {
         
         *pIsInitialReset = true;
         *pResetStartTime = 0;
+    }
+    
+    // 如果切换到Cooldown模式，重置状态
+    if (strcmp(modeName, "Cooldown") == 0) {
+        uint8_t* pCurrentLayer = getCooldownStatePtr();
+        uint32_t* pStartTime = getCooldownStartTimePtr();
+        *pCurrentLayer = 0;
+        *pStartTime = 0;
     }
     
     strcpy(currentMode, modeName);
@@ -352,4 +459,22 @@ bool* SerialController::getIdleResetFlag() {
 uint32_t* SerialController::getIdleStartTimeFlag() {
     static uint32_t resetStartTime = 0;
     return &resetStartTime;
+}
+
+/**
+ * @brief 获取Cooldown模式状态指针
+ * 使用静态变量保存状态
+ */
+uint8_t* SerialController::getCooldownStatePtr() {
+    static uint8_t currentLayer = 0;
+    return &currentLayer;
+}
+
+/**
+ * @brief 获取Cooldown模式开始时间指针
+ * 使用静态变量保存状态
+ */
+uint32_t* SerialController::getCooldownStartTimePtr() {
+    static uint32_t startTime = 0;
+    return &startTime;
 }

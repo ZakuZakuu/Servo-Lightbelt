@@ -142,8 +142,95 @@ void BluetoothController::update() {
             uint32_t dimmedColor = lightBelt->dimColor(onColor, brightness);
             lightBelt->setLayerColor(layer, dimmedColor);
         }
-    }
-    else if (currentMode == "Idle") {
+    } else if (currentMode == "Cooldown") {
+        // 执行Cooldown模式
+        static uint8_t currentLayer = 0;
+        static uint32_t startTime = 0;
+        
+        const uint8_t totalLayers = 3;  // 假设有3层舵机
+        const uint32_t layerCooldownTime = 5000;  // 每层冷却时间5秒
+        const uint32_t orangeColor = 0xFF8800;  // 橙黄色
+        
+        // 如果是第一次执行或刚刚重置
+        if (currentLayer == 0 && startTime == 0) {
+            // 设置所有舵机为最大角度
+            for (uint8_t layer = 0; layer < totalLayers; layer++) {
+                if (useInternalPWM) {
+                    ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 1023);
+                } else {
+                    ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, 1023);
+                }
+            }
+            
+            // 设置所有灯为橙黄色最亮
+            for (uint8_t layer = 0; layer < totalLayers; layer++) {
+                lightBelt->setLayerColor(layer, orangeColor);
+            }
+            
+            // 记录开始时间
+            startTime = millis();
+            Serial.println("Cooldown mode started - all layers set to maximum");
+        }
+        
+        // 如果当前层有效
+        if (currentLayer < totalLayers) {
+            // 计算当前层冷却的进度 (0.0 - 1.0)
+            uint32_t elapsedTime = millis() - startTime;
+            float progress = min(1.0f, (float)elapsedTime / layerCooldownTime);
+            
+            // 从最高层开始冷却，即索引反向
+            uint8_t layer = totalLayers - 1 - currentLayer;
+            
+            // 计算当前角度 (从最大值逐渐减小到最小值)
+            int angleValue = 1023 * (1.0f - progress);
+            
+            // 设置当前层舵机角度
+            if (useInternalPWM) {
+                ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, angleValue);
+            } else {
+                ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, angleValue);
+            }
+            
+            // 计算亮度值（由最亮变为最暗）
+            uint8_t brightness = 255 * (1.0f - progress);
+            
+            // 设置当前层灯带亮度
+            uint32_t dimmedColor = lightBelt->dimColor(orangeColor, brightness);
+            lightBelt->setLayerColor(layer, dimmedColor);
+            
+            // 如果当前层完成冷却
+            if (progress >= 1.0f) {
+                // 确保完全冷却到最小值
+                if (useInternalPWM) {
+                    ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 0);
+                } else {
+                    ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, 0);
+                }
+                
+                // 确保灯光完全变暗
+                lightBelt->setLayerColor(layer, 0); // 完全熄灭
+                
+                // 移至下一层
+                currentLayer++;
+                startTime = millis();
+                
+                if (currentLayer < totalLayers) {
+                    Serial.print("Cooling down layer ");
+                    Serial.println(totalLayers - currentLayer);
+                }
+            }
+        } else {
+            // 所有层都已冷却完毕，切换回Idle模式
+            Serial.println("Cooldown completed, switching to Idle mode");
+            
+            // 重置Cooldown状态以便下次使用
+            currentLayer = 0;
+            startTime = 0;
+            
+            // 切换到Idle模式
+            setPresetMode("Idle");
+        }
+    } else if (currentMode == "Idle") {
         // Idle模式: 白色呼吸灯效果，所有舵机回到最大角度
         
         // 创建白色 (R=255, G=255, B=255)
@@ -160,8 +247,7 @@ void BluetoothController::update() {
                 ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, 1023);
             }
         }
-    }
-    else if (currentMode == "Follow") {
+    } else if (currentMode == "Follow") {
         // 在Follow模式下，根据接收到的参数实时设置舵机角度
         for (int i = 0; i < 6; i++) {
             if (i < 3) {  // 假设最多支持6层，但目前只使用3层
@@ -228,7 +314,7 @@ void BluetoothController::processCommand(String command) {
     }
     
     // 预设模式处理
-    if (modeName == "Rainbow" || modeName == "Idle" || modeName == "Heatup") {
+    if (modeName == "Rainbow" || modeName == "Idle" || modeName == "Heatup" || modeName == "Cooldown") {
         setPresetMode(modeName);
     }
     // 控制模式处理

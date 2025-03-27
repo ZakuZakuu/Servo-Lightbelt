@@ -8,6 +8,6 @@
 #define USE_BLUETOOTH false
 
 // 舵机角度反转: true反转舵机运动方向，false保持正常方向
-#define REVERSE_SERVO_ANGLE false
+#define REVERSE_SERVO_ANGLE true
 
 #endif

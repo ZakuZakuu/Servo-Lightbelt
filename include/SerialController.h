@@ -68,6 +68,24 @@ private:
     void executeHeatupMode();
 
     /**
+     * @brief 执行Cooldown模式
+     * @details 从最高层开始，每层依次由最大角度变为最小角度，灯光同步由亮变暗
+     */
+    void executeCooldownMode();
+    
+    /**
+     * @brief 获取Cooldown模式状态指针
+     * @return Cooldown模式状态指针
+     */
+    uint8_t* getCooldownStatePtr();
+    
+    /**
+     * @brief 获取Cooldown模式开始时间指针
+     * @return Cooldown模式开始时间指针
+     */
+    uint32_t* getCooldownStartTimePtr();
+
+    /**
      * @brief 获取Idle模式复位标志指针
      * @return Idle模式复位标志指针
      */
