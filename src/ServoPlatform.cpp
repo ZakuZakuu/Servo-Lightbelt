@@ -215,28 +215,3 @@ void ServoPlatform::setLayerAngleFromValue(uint8_t layer, int value) {
     int angle = map(constrain(value, 0, 1023), 0, 1023, minAngle, maxAngle);
     setLayerAngle(layer, angle);
 }
-
-void ServoPlatform::sweepAlternateGroups(uint32_t periodMs) {
-    uint32_t timeNow = millis();
-    float phase = (timeNow % periodMs) / (float)periodMs;
-    float angle1, angle2;
-    
-    // 第一组 (1,3,5) 从最小角度开始运动
-    if (phase < 0.5) {
-        angle1 = minAngle + (maxAngle - minAngle) * (phase * 2);
-        angle2 = maxAngle - (maxAngle - minAngle) * (phase * 2);
-    } else {
-        angle1 = maxAngle - (maxAngle - minAngle) * ((phase - 0.5) * 2);
-        angle2 = minAngle + (maxAngle - minAngle) * ((phase - 0.5) * 2);
-    }
-    
-    // 设置第一组 (1,3,5) - 注意：layer从0开始，所以是0,2,4
-    for (uint8_t i = 0; i < layers; i += 2) {
-        setLayerAngle(i, angle1);
-    }
-    
-    // 设置第二组 (2,4,6) - 注意：layer从0开始，所以是1,3,5
-    for (uint8_t i = 1; i < layers; i += 2) {
-        setLayerAngle(i, angle2);
-    }
-}

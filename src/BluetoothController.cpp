@@ -106,15 +106,6 @@ void BluetoothController::update() {
         } else {
             ((ServoPlatform*)servoPlatform)->sweepAllLayers(periodMs, 30.0);
         }
-    } else if (currentMode == "Heatup") {  // 将"Alternate"改为"Heatup"
-        // 新模式：交替分组运动
-        lightBelt->rainbowCycle(periodMs * 2); // 灯光效果可以调整
-        
-        if (useInternalPWM) {
-            ((ServoPlatformInter*)servoPlatform)->sweepAlternateGroups(periodMs);
-        } else {
-            ((ServoPlatform*)servoPlatform)->sweepAlternateGroups(periodMs);
-        }
     }
     else if (currentMode == "Idle") {
         // Idle模式: 白色呼吸灯效果，所有舵机回到最大角度
@@ -185,7 +176,7 @@ void BluetoothController::processCommand(String command) {
     }
     
     // 预设模式处理
-    if (modeName == "Rainbow" || modeName == "Idle" || modeName == "Heatup") {  // 将"Alternate"改为"Heatup"
+    if (modeName == "Rainbow" || modeName == "Idle") {
         setPresetMode(modeName);
     }
     // 控制模式处理
