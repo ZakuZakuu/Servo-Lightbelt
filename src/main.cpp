@@ -10,7 +10,7 @@
 #define CYCLE_TIME 5000  // 5秒周期
 
 // 选择舵机驱动方式: true使用ESP32内置PWM，false使用外置PCA9685
-#define USE_INTERNAL_PWM false
+#define USE_INTERNAL_PWM true
 
 LightBelt belt(LED_PIN, LAYER_COUNT, LEDS_PER_LAYER);
 
