@@ -74,6 +74,12 @@ private:
     void executeCooldownMode();
     
     /**
+     * @brief 执行Standby模式
+     * @details 所有舵机回到最小值，全部灯带为蓝色呼吸灯样式
+     */
+    void executeStandbyMode();
+    
+    /**
      * @brief 获取Cooldown模式状态指针
      * @return Cooldown模式状态指针
      */

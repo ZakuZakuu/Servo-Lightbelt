@@ -220,17 +220,31 @@ void BluetoothController::update() {
                 }
             }
         } else {
-            // 所有层都已冷却完毕，切换回Idle模式
-            Serial.println("Cooldown completed, switching to Idle mode");
+            // 所有层都已冷却完毕，切换回Standby模式
+            Serial.println("Cooldown completed, switching to Standby mode");
             
             // 重置Cooldown状态以便下次使用
             currentLayer = 0;
             startTime = 0;
             
-            // 切换到Idle模式
-            setPresetMode("Idle");
+            // 切换到Standby模式
+            setPresetMode("Standby");
         }
-    } else if (currentMode == "Idle") {
+    } else if (currentMode == "Standby") {
+        // 设置所有舵机为最小角度
+        for (uint8_t layer = 0; layer < 3; layer++) { // 假设有3层
+            if (useInternalPWM) {
+                ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 0);
+            } else {
+                ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, 0);
+            }
+        }
+        
+        // 蓝色呼吸灯效果
+        uint32_t blueColor = 0x0000FF; // 纯蓝色
+        lightBelt->breathing(blueColor, 3000); // 3秒周期的呼吸效果
+    }
+    else if (currentMode == "Idle") {
         // Idle模式: 白色呼吸灯效果，所有舵机回到最大角度
         
         // 创建白色 (R=255, G=255, B=255)
@@ -314,7 +328,8 @@ void BluetoothController::processCommand(String command) {
     }
     
     // 预设模式处理
-    if (modeName == "Rainbow" || modeName == "Idle" || modeName == "Heatup" || modeName == "Cooldown") {
+    if (modeName == "Rainbow" || modeName == "Idle" || modeName == "Heatup" || 
+        modeName == "Cooldown" || modeName == "Standby") {
         setPresetMode(modeName);
     }
     // 控制模式处理

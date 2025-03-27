@@ -102,6 +102,9 @@ void SerialController::update() {
     else if (modeEquals("Cooldown")) {
         executeCooldownMode();
     }
+    else if (modeEquals("Standby")) {
+        executeStandbyMode();
+    }
     else if (modeEquals("Follow")) {
         // 实时控制舵机角度
         for (int i = 0; i < 3; i++) {
@@ -285,16 +288,35 @@ void SerialController::executeCooldownMode() {
             }
         }
     } else {
-        // 所有层都已冷却完毕，切换回Idle模式
-        Serial.println("Cooldown completed, switching to Idle mode");
+        // 所有层都已冷却完毕，切换回Standby模式
+        Serial.println("Cooldown completed, switching to Standby mode");
         
         // 重置Cooldown状态以便下次使用
         *pCurrentLayer = 0;
         *pStartTime = 0;
         
-        // 切换到Idle模式
-        setPresetMode("Idle");
+        // 切换到Standby模式
+        setPresetMode("Standby");
     }
+}
+
+/**
+ * @brief 执行Standby模式
+ * @details 所有舵机回到最小值，全部灯带为蓝色呼吸灯样式
+ */
+void SerialController::executeStandbyMode() {
+    // 设置所有舵机为最小角度
+    for (uint8_t layer = 0; layer < 3; layer++) { // 假设有3层
+        if (useInternalPWM) {
+            ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 0);
+        } else {
+            ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, 0);
+        }
+    }
+    
+    // 蓝色呼吸灯效果
+    uint32_t blueColor = 0x0000FF; // 纯蓝色
+    lightBelt->breathing(blueColor, 3000); // 3秒周期的呼吸效果
 }
 
 /**
@@ -332,7 +354,8 @@ void SerialController::processCommand() {
     
     // 预设模式
     if (strcmp(token, "Rainbow") == 0 || strcmp(token, "Idle") == 0 || 
-        strcmp(token, "Heatup") == 0 || strcmp(token, "Cooldown") == 0) {
+        strcmp(token, "Heatup") == 0 || strcmp(token, "Cooldown") == 0 ||
+        strcmp(token, "Standby") == 0) {
         setPresetMode(token);
         return;
     }
