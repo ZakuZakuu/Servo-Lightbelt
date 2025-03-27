@@ -14,7 +14,7 @@ ServoPlatform::ServoPlatform(uint8_t numLayers, uint8_t i2cAddress, uint8_t minA
 }
 
 uint8_t ServoPlatform::scanI2CAddress() {
-    Serial.println("开始扫描I2C设备...");
+    Serial.println("Scanning I2C devices...");
     uint8_t error, address;
     uint8_t foundAddress = 0;
     int nDevices = 0;
@@ -24,7 +24,7 @@ uint8_t ServoPlatform::scanI2CAddress() {
         error = Wire.endTransmission();
 
         if (error == 0) {
-            Serial.print("发现I2C设备，地址: 0x");
+            Serial.print("I2C device found at address: 0x");
             if (address < 16) Serial.print("0");
             Serial.println(address, HEX);
             nDevices++;
@@ -36,7 +36,7 @@ uint8_t ServoPlatform::scanI2CAddress() {
     }
     
     if (nDevices == 0) {
-        Serial.println("未找到I2C设备！");
+        Serial.println("No I2C devices found!");
         return 0;
     }
     
@@ -44,9 +44,9 @@ uint8_t ServoPlatform::scanI2CAddress() {
 }
 
 void ServoPlatform::begin() {
-    Serial.print("初始化I2C - SDA引脚: ");
+    Serial.print("Initializing I2C - SDA pin: ");
     Serial.print(21);
-    Serial.print(", SCL引脚: ");
+    Serial.print(", SCL pin: ");
     Serial.println(22);
     
     Wire.setPins(21, 22);  // 初始化I2C，设置SDA和SCL引脚
@@ -56,16 +56,16 @@ void ServoPlatform::begin() {
     uint8_t scannedAddress = scanI2CAddress();
     if (scannedAddress != 0) {
         i2cAddress = scannedAddress;
-        Serial.print("使用扫描到的I2C地址: 0x");
+        Serial.print("Using scanned I2C address: 0x");
         Serial.println(i2cAddress, HEX);
         pwm = Adafruit_PWMServoDriver(i2cAddress);
     } else {
-        Serial.println("使用默认I2C地址: 0x40");
+        Serial.println("Using default I2C address: 0x40");
         pwm = Adafruit_PWMServoDriver(0x40);
     }
     
     pwm.begin();
-    pwm.setPWMFreq(200);  // 标准舵机PWM频率
+    pwm.setPWMFreq(50);  // 标准舵机PWM频率
     delay(10);
     
     // 移除了自检程序调用
@@ -96,11 +96,11 @@ void ServoPlatform::sweepLayer(uint8_t layer, uint32_t periodMs) {
     
     if(phase < 0.5) {
         // 0-0.5: 从最小角度到最大角度
-        Serial.println("0-0.5");
+        Serial.println("Phase 0-0.5");
         angle = minAngle + (maxAngle - minAngle) * (phase * 2);
     } else {
         // 0.5-1: 从最大角度回到最小角度
-        Serial.println("0.5-1");
+        Serial.println("Phase 0.5-1");
         angle = maxAngle - (maxAngle - minAngle) * ((phase - 0.5) * 2);
     }
     
@@ -125,10 +125,10 @@ void ServoPlatform::sweepAllLayers(uint32_t periodMs, float phaseDiff) {
         }
         
         if (layer == 0) {
-            Serial.print("Phase: ");
-            Serial.print(phase);
-            Serial.print(", Angle: ");
-            Serial.println(angle);
+            // Serial.print("Phase: ");
+            // Serial.print(phase);
+            // Serial.print(", Angle: ");
+            // Serial.println(angle);
         }
         setLayerAngle(layer, angle);
     }
@@ -183,7 +183,7 @@ void ServoPlatform::resetSweep() {
 }
 
 void ServoPlatform::servoSelfTest() {
-    Serial.println("开始舵机自检...");
+    Serial.println("Starting servo self-test...");
     
     // 先全部归零
     for(uint8_t layer = 0; layer < layers; layer++) {
@@ -193,9 +193,9 @@ void ServoPlatform::servoSelfTest() {
 
     // 依次测试每层舵机
     for(uint8_t layer = 0; layer < layers; layer++) {
-        Serial.print("测试第 ");
+        Serial.print("Testing layer ");
         Serial.print(layer + 1);
-        Serial.println(" 层舵机");
+        Serial.println(" servos");
         
         // 转到最大角度
         setLayerAngle(layer, maxAngle);
@@ -205,7 +205,7 @@ void ServoPlatform::servoSelfTest() {
         delay(500);
     }
     
-    Serial.println("舵机自检完成！");
+    Serial.println("Servo self-test completed!");
 }
 
 void ServoPlatform::setLayerAngleFromValue(uint8_t layer, int value) {

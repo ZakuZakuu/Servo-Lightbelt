@@ -60,7 +60,7 @@ void ServoPlatformInter::setLayerAngle(uint8_t layer, uint8_t angle) {
 }
 
 void ServoPlatformInter::begin() {
-    Serial.println("初始化内部PWM舵机控制...");
+    Serial.println("Initializing internal PWM servo control...");
     initPWM();
     delay(100);
     // 移除了自检调用
@@ -157,7 +157,7 @@ void ServoPlatformInter::resetSweep() {
 }
 
 void ServoPlatformInter::servoSelfTest() {
-    Serial.println("开始舵机自检...");
+    Serial.println("Starting servo self-test...");
     
     for(uint8_t layer = 0; layer < layers; layer++) {
         setLayerAngle(layer, minAngle);
@@ -165,13 +165,13 @@ void ServoPlatformInter::servoSelfTest() {
     delay(1000);
 
     for(uint8_t layer = 0; layer < layers; layer++) {
-        Serial.print("测试第 ");
+        Serial.print("Testing layer ");
         Serial.print(layer + 1);
-        Serial.print(" 层舵机 (舵机");
+        Serial.print(" servos (servo");
         Serial.print(layer*2);
         Serial.print("[GPIO");
         Serial.print(servoPins[layer*2]);
-        Serial.print("], 舵机");
+        Serial.print("], servo");
         Serial.print(layer*2+1);
         Serial.print("[GPIO");
         Serial.print(servoPins[layer*2+1]);
@@ -183,7 +183,7 @@ void ServoPlatformInter::servoSelfTest() {
         delay(500);
     }
     
-    Serial.println("舵机自检完成！");
+    Serial.println("Servo self-test completed!");
 }
 
 void ServoPlatformInter::setLayerAngleFromValue(uint8_t layer, int value) {

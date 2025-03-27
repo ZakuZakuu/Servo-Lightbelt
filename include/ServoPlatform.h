@@ -35,7 +35,7 @@ public:
      * @param minAng 舵机最小角度
      * @param maxAng 舵机最大角度
      */
-    ServoPlatform(uint8_t numLayers, uint8_t i2cAddress = 0x40, uint8_t minAng = 0, uint8_t maxAng = 180);
+    ServoPlatform(uint8_t numLayers, uint8_t i2cAddress = 0x40, uint8_t minAng = 40, uint8_t maxAng = 180);
     
     /**
      * @brief 初始化舵机平台
