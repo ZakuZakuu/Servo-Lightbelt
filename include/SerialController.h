@@ -62,6 +62,12 @@ private:
     void executeIdleMode();
 
     /**
+     * @brief 执行Heatup模式
+     * @details 舵机相位差半个周期往返运动，灯带呼吸效果与对应舵机同步
+     */
+    void executeHeatupMode();
+
+    /**
      * @brief 获取Idle模式复位标志指针
      * @return Idle模式复位标志指针
      */

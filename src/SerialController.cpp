@@ -96,6 +96,9 @@ void SerialController::update() {
     else if (modeEquals("Idle")) {
         executeIdleMode();
     }
+    else if (modeEquals("Heatup")) {
+        executeHeatupMode();
+    }
     else if (modeEquals("Follow")) {
         // 实时控制舵机角度
         for (int i = 0; i < 3; i++) {
@@ -154,6 +157,49 @@ void SerialController::executeIdleMode() {
 }
 
 /**
+ * @brief 执行Heatup模式
+ * @details 舵机相位差半个周期往返运动，灯带呼吸效果与对应舵机同步
+ */
+void SerialController::executeHeatupMode() {
+    uint32_t timeNow = millis();
+    
+    // 定义颜色 - 使用红色表示热量
+    uint32_t onColor = 0xFF0000;  // 红色
+    
+    // 计算各层舵机角度
+    for (uint8_t layer = 0; layer < 3; layer++) {  // 最多3层舵机
+        float phase = (timeNow % periodMs) / (float)periodMs;
+        
+        // 对偶数层反相，实现交替效果 (相位差半个周期)
+        if (layer % 2 == 1) {
+            phase = (phase + 0.5) > 1.0 ? (phase - 0.5) : (phase + 0.5);
+        }
+        
+        // 计算映射到0-1023的值
+        int mappedValue;
+        if (phase < 0.5) {
+            mappedValue = (phase * 2) * 1023;
+        } else {
+            mappedValue = (1.0 - (phase - 0.5) * 2) * 1023;
+        }
+        
+        // 使用公有方法setLayerAngleFromValue而不是私有方法setLayerAngle
+        if (useInternalPWM) {
+            ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, mappedValue);
+        } else {
+            ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, mappedValue);
+        }
+        
+        // 计算亮度值，与舵机角度同步变化
+        uint8_t brightness = map(mappedValue, 0, 1023, 0, 255);
+        
+        // 设置对应层的灯带颜色
+        uint32_t dimmedColor = lightBelt->dimColor(onColor, brightness);
+        lightBelt->setLayerColor(layer, dimmedColor);
+    }
+}
+
+/**
  * @brief 处理命令
  */
 void SerialController::processCommand() {
@@ -171,7 +217,7 @@ void SerialController::processCommand() {
     }
     
     // 预设模式
-    if (strcmp(token, "Rainbow") == 0 || strcmp(token, "Idle") == 0) {
+    if (strcmp(token, "Rainbow") == 0 || strcmp(token, "Idle") == 0 || strcmp(token, "Heatup") == 0) {
         setPresetMode(token);
         return;
     }
