@@ -215,7 +215,15 @@ void SerialController::executeCooldownMode() {
     
     // 获取当前层数(索引从0开始)
     uint8_t currentLayer = *pCurrentLayer;
-    const uint8_t totalLayers = 3;  // 假设有3层舵机
+    
+    // 自动获取舵机层数
+    uint8_t totalLayers = 0;
+    if (useInternalPWM) {
+        totalLayers = ((ServoPlatformInter*)servoPlatform)->getLayers();
+    } else {
+        totalLayers = ((ServoPlatform*)servoPlatform)->getLayers();
+    }
+    
     const uint32_t layerCooldownTime = 5000;  // 每层冷却时间5秒
     const uint32_t orangeColor = 0xFF8800;  // 橙黄色
     
@@ -305,8 +313,16 @@ void SerialController::executeCooldownMode() {
  * @details 所有舵机回到最小值，全部灯带为蓝色呼吸灯样式
  */
 void SerialController::executeStandbyMode() {
+    // 获取舵机层数
+    uint8_t totalLayers = 0;
+    if (useInternalPWM) {
+        totalLayers = ((ServoPlatformInter*)servoPlatform)->getLayers();
+    } else {
+        totalLayers = ((ServoPlatform*)servoPlatform)->getLayers();
+    }
+    
     // 设置所有舵机为最小角度
-    for (uint8_t layer = 0; layer < 3; layer++) { // 假设有3层
+    for (uint8_t layer = 0; layer < totalLayers; layer++) {
         if (useInternalPWM) {
             ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 0);
         } else {

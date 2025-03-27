@@ -89,6 +89,12 @@ public:
      * @return 舵机角度是否反转
      */
     bool getReverseAngle() const;
+
+    /**
+     * @brief 获取舵机平台的层数
+     * @return 舵机平台的层数
+     */
+    uint8_t getLayers() const { return layers; }
 };
 
 #endif
