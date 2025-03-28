@@ -107,12 +107,30 @@ void SerialController::update() {
     }
     else if (modeEquals("Follow")) {
         // 实时控制舵机角度
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 6; i++) {
             if (useInternalPWM) {
                 ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(i, params[i]);
             } else {
                 ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(i, params[i]);
             }
+            
+            // 添加灯带灯光效果
+            // 1. 亮度和Follow参数成正比
+            uint8_t brightness = map(params[i], 0, 1023, 0, 255);
+            
+            // 2. 蓝色程度和参数成正比，越大越蓝，越小越白
+            // 从白色(0xFFFFFF)到蓝色(0x0000FF)的渐变
+            uint8_t blueValue = 255;  // 蓝色分量保持255
+            uint8_t whiteValue = 255 - map(params[i], 0, 1023, 0, 255);  // 红绿分量随参数减小
+            
+            // 构建RGB颜色
+            uint32_t color = (whiteValue << 16) | (whiteValue << 8) | blueValue;
+            
+            // 调整亮度
+            uint32_t adjustedColor = lightBelt->dimColor(color, brightness);
+            
+            // 设置灯带颜色
+            lightBelt->setLayerColor(i, adjustedColor);
         }
     }
 }
@@ -136,7 +154,7 @@ void SerialController::executeIdleMode() {
             
             // 设置所有舵机为最小角度
             Serial.println("Resetting servos to minimum angle...");
-            for (uint8_t layer = 0; layer < 3; layer++) {
+            for (uint8_t layer = 0; layer < 6; layer++) {
                 if (useInternalPWM) {
                     ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 0);
                 } else {
@@ -173,7 +191,7 @@ void SerialController::executeHeatupMode() {
     uint32_t onColor = 0xFF0000;  // 红色
     
     // 计算各层舵机角度
-    for (uint8_t layer = 0; layer < 3; layer++) {  // 最多3层舵机
+    for (uint8_t layer = 0; layer < 6; layer++) {  // 最多6层舵机
         float phase = (timeNow % periodMs) / (float)periodMs;
         
         // 对偶数层反相，实现交替效果 (相位差半个周期)
