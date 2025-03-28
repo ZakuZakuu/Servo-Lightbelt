@@ -360,6 +360,19 @@ void BluetoothController::processCommand(String command) {
         return;
     }
     
+    // LED亮度设置命令
+    if (modeName == "SetBrightness") {
+        if (firstSeparator + 1 < command.length()) {
+            float brightness = command.substring(firstSeparator + 1).toFloat();
+            lightBelt->setMaxBrightness(brightness);
+            Serial.print("LED亮度设置为: ");
+            Serial.println(brightness);
+            String response = "Brightness=" + String(brightness);
+            BT.println(response);
+        }
+        return;
+    }
+    
     // 预设模式处理
     if (modeName == "Rainbow" || modeName == "Idle" || modeName == "Heatup" || 
         modeName == "Cooldown" || modeName == "Standby") {

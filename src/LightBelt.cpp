@@ -1,13 +1,17 @@
 #include "LightBelt.h"
+#include "GlobalConfig.h"
 
 LightBelt::LightBelt(uint8_t pin, uint8_t numLayers, uint8_t ledsInLayer) 
     : layers(numLayers), ledsPerLayer(ledsInLayer) {
     totalLeds = numLayers * ledsInLayer;
     strip = Adafruit_NeoPixel(totalLeds, pin, NEO_GRB + NEO_KHZ800);
+    maxBrightness = MAX_LED_BRIGHTNESS;  // 从全局配置设置默认亮度
 }
 
 void LightBelt::begin() {
     strip.begin();
+    // 设置整体亮度限制
+    strip.setBrightness(255 * maxBrightness);
     strip.show();
 }
 
@@ -77,11 +81,24 @@ uint32_t LightBelt::dimColor(uint32_t color, uint8_t brightness) {
     uint8_t g = (color >> 8) & 0xFF;
     uint8_t b = color & 0xFF;
     
-    // 按比例调整亮度
-    r = (r * brightness) / 255;
-    g = (g * brightness) / 255;
-    b = (b * brightness) / 255;
+    // 按比例调整亮度，同时应用最大亮度限制
+    float brightnessScale = (brightness / 255.0f) * maxBrightness;
+    r = r * brightnessScale;
+    g = g * brightnessScale;
+    b = b * brightnessScale;
     
     // 重新组合颜色
     return strip.Color(r, g, b);
+}
+
+void LightBelt::setMaxBrightness(float brightness) {
+    // 确保亮度在有效范围内
+    maxBrightness = constrain(brightness, 0.0f, 1.0f);
+    // 立即更新灯带整体亮度
+    strip.setBrightness(255 * maxBrightness);
+    strip.show();
+}
+
+float LightBelt::getMaxBrightness() const {
+    return maxBrightness;
 }

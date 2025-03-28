@@ -32,7 +32,11 @@ void setup() {
     delay(1000);
     
     Serial.println("Starting initialization...");
+    
+    // 初始化LED灯带
     belt.begin();
+    Serial.print("LED max brightness set to: ");
+    Serial.println(MAX_LED_BRIGHTNESS);
     
     // 设置舵机角度反转状态
     platform.setReverseAngle(REVERSE_SERVO_ANGLE);

@@ -13,6 +13,7 @@ private:
     uint8_t layers;
     uint8_t ledsPerLayer;
     uint32_t totalLeds;
+    float maxBrightness;    // 最大亮度限制(0.0-1.0)
     
 public:
     /**
@@ -68,6 +69,18 @@ public:
      * @return 调整亮度后的颜色
      */
     uint32_t dimColor(uint32_t color, uint8_t brightness);
+
+    /**
+     * @brief 设置LED灯带的最大亮度
+     * @param brightness 亮度值(0.0-1.0)
+     */
+    void setMaxBrightness(float brightness);
+    
+    /**
+     * @brief 获取当前设置的最大亮度
+     * @return 当前最大亮度值(0.0-1.0)
+     */
+    float getMaxBrightness() const;
 };
 
 #endif

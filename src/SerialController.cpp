@@ -386,6 +386,18 @@ void SerialController::processCommand() {
         return;
     }
     
+    // LED亮度设置命令
+    if (strcmp(token, "SetBrightness") == 0) {
+        token = strtok(NULL, "|");
+        if (token) {
+            float brightness = atof(token); // 将字符串转换为浮点数
+            lightBelt->setMaxBrightness(brightness);
+            Serial.print("LED max brightness set to: ");
+            Serial.println(brightness);
+        }
+        return;
+    }
+    
     // 预设模式
     if (strcmp(token, "Rainbow") == 0 || strcmp(token, "Idle") == 0 || 
         strcmp(token, "Heatup") == 0 || strcmp(token, "Cooldown") == 0 ||

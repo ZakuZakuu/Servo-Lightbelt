@@ -10,4 +10,7 @@
 // 舵机角度反转: true反转舵机运动方向，false保持正常方向
 #define REVERSE_SERVO_ANGLE true
 
+// LED灯带亮度限制: 0.0-1.0之间的值，限制灯带功率
+#define MAX_LED_BRIGHTNESS 0.2f
+
 #endif
