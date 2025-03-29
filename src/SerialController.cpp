@@ -107,17 +107,20 @@ void SerialController::update() {
     }
     else if (modeEquals("Follow")) {
         // 获取舵机层数
-        uint8_t totalLayers = 0;
+        uint8_t totalServoLayers = 0;
         if (useInternalPWM) {
-            totalLayers = ((ServoPlatformInter*)servoPlatform)->getLayers();
+            totalServoLayers = ((ServoPlatformInter*)servoPlatform)->getLayers();
         } else {
-            totalLayers = ((ServoPlatform*)servoPlatform)->getLayers();
+            totalServoLayers = ((ServoPlatform*)servoPlatform)->getLayers();
         }
         
+        // 获取灯带总层数
+        uint8_t totalLightLayers = lightBelt->getLayers();
+        
         // 实时控制舵机角度和灯光效果
-        for (int i = 0; i < totalLayers && i < 6; i++) {
+        for (int i = 0; i < totalServoLayers && i < 6; i++) {
             // 层号反向映射：第一位对应最后一层，以此类推
-            int reversedLayer = totalLayers - 1 - i;
+            int reversedLayer = totalServoLayers - 1 - i;
             
             // 设置舵机角度
             if (useInternalPWM) {
@@ -141,8 +144,25 @@ void SerialController::update() {
             // 调整亮度
             uint32_t adjustedColor = lightBelt->dimColor(color, brightness);
             
-            // 设置灯带颜色（同样使用反向映射的层号）
-            lightBelt->setLayerColor(reversedLayer, adjustedColor);
+            // 设置灯带颜色，每层舵机对应两层灯带
+            if (totalLightLayers >= totalServoLayers * 2) {
+                // 层号反向映射，对应两层灯带
+                uint8_t lightLayer1 = reversedLayer * 2;
+                uint8_t lightLayer2 = reversedLayer * 2 + 1;
+                
+                if (lightLayer1 < totalLightLayers) {
+                    lightBelt->setLayerColor(lightLayer1, adjustedColor);
+                }
+                
+                if (lightLayer2 < totalLightLayers) {
+                    lightBelt->setLayerColor(lightLayer2, adjustedColor);
+                }
+            } else {
+                // 灯带层数与舵机层数相同或更少的情况
+                if (reversedLayer < totalLightLayers) {
+                    lightBelt->setLayerColor(reversedLayer, adjustedColor);
+                }
+            }
         }
     }
 }
@@ -154,7 +174,15 @@ void SerialController::executeIdleMode() {
     static bool isInitialReset = true;
     static uint32_t resetStartTime = 0;
     
-    // 白色呼吸灯效果
+    // 获取舵机层数
+    uint8_t totalServoLayers = 0;
+    if (useInternalPWM) {
+        totalServoLayers = ((ServoPlatformInter*)servoPlatform)->getLayers();
+    } else {
+        totalServoLayers = ((ServoPlatform*)servoPlatform)->getLayers();
+    }
+    
+    // 白色呼吸灯效果（所有层相同颜色）
     uint32_t whiteColor = 0xFFFFFF;
     lightBelt->breathing(whiteColor, 3000);
     
@@ -166,7 +194,7 @@ void SerialController::executeIdleMode() {
             
             // 设置所有舵机为最小角度
             Serial.println("Resetting servos to minimum angle...");
-            for (uint8_t layer = 0; layer < 6; layer++) {
+            for (uint8_t layer = 0; layer < totalServoLayers; layer++) {
                 if (useInternalPWM) {
                     ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 0);
                 } else {
@@ -202,12 +230,23 @@ void SerialController::executeHeatupMode() {
     // 定义颜色 - 使用红色表示热量
     uint32_t onColor = 0xFF0000;  // 红色
     
+    // 获取舵机总层数
+    uint8_t totalServoLayers = 0;
+    if (useInternalPWM) {
+        totalServoLayers = ((ServoPlatformInter*)servoPlatform)->getLayers();
+    } else {
+        totalServoLayers = ((ServoPlatform*)servoPlatform)->getLayers();
+    }
+    
+    // 获取灯带总层数，通常是舵机层数的2倍
+    uint8_t totalLightLayers = lightBelt->getLayers();
+    
     // 计算各层舵机角度
-    for (uint8_t layer = 0; layer < 6; layer++) {  // 最多6层舵机
+    for (uint8_t servoLayer = 0; servoLayer < totalServoLayers; servoLayer++) {
         float phase = (timeNow % periodMs) / (float)periodMs;
         
         // 对偶数层反相，实现交替效果 (相位差半个周期)
-        if (layer % 2 == 1) {
+        if (servoLayer % 2 == 1) {
             phase = (phase + 0.5) > 1.0 ? (phase - 0.5) : (phase + 0.5);
         }
         
@@ -221,9 +260,9 @@ void SerialController::executeHeatupMode() {
         
         // 使用公有方法setLayerAngleFromValue而不是私有方法setLayerAngle
         if (useInternalPWM) {
-            ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, mappedValue);
+            ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(servoLayer, mappedValue);
         } else {
-            ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, mappedValue);
+            ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(servoLayer, mappedValue);
         }
         
         // 计算亮度值，与舵机角度同步变化
@@ -231,7 +270,26 @@ void SerialController::executeHeatupMode() {
         
         // 设置对应层的灯带颜色
         uint32_t dimmedColor = lightBelt->dimColor(onColor, brightness);
-        lightBelt->setLayerColor(layer, dimmedColor);
+        
+        // 针对灯带层数是舵机层数的2倍的情况，将两层灯带对应一层舵机
+        if (totalLightLayers >= totalServoLayers * 2) {
+            // 每层舵机对应两层灯带
+            uint8_t lightLayer1 = servoLayer * 2;
+            uint8_t lightLayer2 = servoLayer * 2 + 1;
+            
+            if (lightLayer1 < totalLightLayers) {
+                lightBelt->setLayerColor(lightLayer1, dimmedColor);
+            }
+            
+            if (lightLayer2 < totalLightLayers) {
+                lightBelt->setLayerColor(lightLayer2, dimmedColor);
+            }
+        } else {
+            // 灯带层数与舵机层数相同或更少的情况
+            if (servoLayer < totalLightLayers) {
+                lightBelt->setLayerColor(servoLayer, dimmedColor);
+            }
+        }
     }
 }
 
@@ -248,22 +306,25 @@ void SerialController::executeCooldownMode() {
     uint8_t currentLayer = *pCurrentLayer;
     
     // 自动获取舵机层数
-    uint8_t totalLayers = 0;
+    uint8_t totalServoLayers = 0;
     if (useInternalPWM) {
-        totalLayers = ((ServoPlatformInter*)servoPlatform)->getLayers();
+        totalServoLayers = ((ServoPlatformInter*)servoPlatform)->getLayers();
     } else {
-        totalLayers = ((ServoPlatform*)servoPlatform)->getLayers();
+        totalServoLayers = ((ServoPlatform*)servoPlatform)->getLayers();
     }
+    
+    // 获取灯带总层数
+    uint8_t totalLightLayers = lightBelt->getLayers();
     
     // 计算每层冷却时间 = 总时间 / 层数
     const uint32_t totalCooldownTime = 30000;  // 总冷却时间30秒
-    const uint32_t layerCooldownTime = totalCooldownTime / totalLayers;  // 每层冷却时间
+    const uint32_t layerCooldownTime = totalCooldownTime / totalServoLayers;  // 每层冷却时间
     const uint32_t orangeColor = 0xFF8800;  // 橙黄色
     
     // 如果是第一次执行或刚刚重置
     if (currentLayer == 0 && *pStartTime == 0) {
         // 设置所有舵机为最大角度
-        for (uint8_t layer = 0; layer < totalLayers; layer++) {
+        for (uint8_t layer = 0; layer < totalServoLayers; layer++) {
             if (useInternalPWM) {
                 ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 1023);
             } else {
@@ -272,7 +333,7 @@ void SerialController::executeCooldownMode() {
         }
         
         // 设置所有灯为橙黄色最亮
-        for (uint8_t layer = 0; layer < totalLayers; layer++) {
+        for (uint8_t layer = 0; layer < totalLightLayers; layer++) {
             lightBelt->setLayerColor(layer, orangeColor);
         }
         
@@ -287,52 +348,89 @@ void SerialController::executeCooldownMode() {
     }
     
     // 如果当前层有效
-    if (currentLayer < totalLayers) {
+    if (currentLayer < totalServoLayers) {
         // 计算当前层冷却的进度 (0.0 - 1.0)
         uint32_t elapsedTime = millis() - *pStartTime;
         float progress = min(1.0f, (float)elapsedTime / layerCooldownTime);
         
         // 从最高层开始冷却，即索引反向
-        uint8_t layer = totalLayers - 1 - currentLayer;
+        uint8_t servoLayer = totalServoLayers - 1 - currentLayer;
         
         // 计算当前角度 (从最大值逐渐减小到最小值)
         int angleValue = 1023 * (1.0f - progress);
         
         // 设置当前层舵机角度
         if (useInternalPWM) {
-            ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, angleValue);
+            ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(servoLayer, angleValue);
         } else {
-            ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, angleValue);
+            ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(servoLayer, angleValue);
         }
         
         // 计算亮度值（由最亮变为最暗）
         uint8_t brightness = 255 * (1.0f - progress);
         
-        // 设置当前层灯带亮度
+        // 设置对应层灯带亮度
         uint32_t dimmedColor = lightBelt->dimColor(orangeColor, brightness);
-        lightBelt->setLayerColor(layer, dimmedColor);
+        
+        // 针对灯带层数是舵机层数的2倍的情况
+        if (totalLightLayers >= totalServoLayers * 2) {
+            // 每层舵机对应两层灯带
+            uint8_t lightLayer1 = servoLayer * 2;
+            uint8_t lightLayer2 = servoLayer * 2 + 1;
+            
+            if (lightLayer1 < totalLightLayers) {
+                lightBelt->setLayerColor(lightLayer1, dimmedColor);
+            }
+            
+            if (lightLayer2 < totalLightLayers) {
+                lightBelt->setLayerColor(lightLayer2, dimmedColor);
+            }
+        } else {
+            // 灯带层数与舵机层数相同或更少的情况
+            if (servoLayer < totalLightLayers) {
+                lightBelt->setLayerColor(servoLayer, dimmedColor);
+            }
+        }
         
         // 如果当前层完成冷却
         if (progress >= 1.0f) {
             // 确保完全冷却到最小值
             if (useInternalPWM) {
-                ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 0);
+                ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(servoLayer, 0);
             } else {
-                ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(layer, 0);
+                ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(servoLayer, 0);
             }
             
             // 确保灯光完全变暗
-            lightBelt->setLayerColor(layer, 0); // 完全熄灭
+            // 针对灯带层数是舵机层数的2倍的情况
+            if (totalLightLayers >= totalServoLayers * 2) {
+                // 每层舵机对应两层灯带
+                uint8_t lightLayer1 = servoLayer * 2;
+                uint8_t lightLayer2 = servoLayer * 2 + 1;
+                
+                if (lightLayer1 < totalLightLayers) {
+                    lightBelt->setLayerColor(lightLayer1, 0);
+                }
+                
+                if (lightLayer2 < totalLightLayers) {
+                    lightBelt->setLayerColor(lightLayer2, 0);
+                }
+            } else {
+                // 灯带层数与舵机层数相同或更少的情况
+                if (servoLayer < totalLightLayers) {
+                    lightBelt->setLayerColor(servoLayer, 0);
+                }
+            }
             
             // 移至下一层
             (*pCurrentLayer)++;
             *pStartTime = millis();
             
-            if (*pCurrentLayer < totalLayers) {
+            if (*pCurrentLayer < totalServoLayers) {
                 Serial.print("Cooling down layer ");
-                Serial.print(totalLayers - *pCurrentLayer);
+                Serial.print(totalServoLayers - *pCurrentLayer);
                 Serial.print(" (");
-                Serial.print((*pCurrentLayer) * 100 / totalLayers);
+                Serial.print((*pCurrentLayer) * 100 / totalServoLayers);
                 Serial.println("% completed)");
             }
         }
@@ -355,15 +453,15 @@ void SerialController::executeCooldownMode() {
  */
 void SerialController::executeStandbyMode() {
     // 获取舵机层数
-    uint8_t totalLayers = 0;
+    uint8_t totalServoLayers = 0;
     if (useInternalPWM) {
-        totalLayers = ((ServoPlatformInter*)servoPlatform)->getLayers();
+        totalServoLayers = ((ServoPlatformInter*)servoPlatform)->getLayers();
     } else {
-        totalLayers = ((ServoPlatform*)servoPlatform)->getLayers();
+        totalServoLayers = ((ServoPlatform*)servoPlatform)->getLayers();
     }
     
     // 设置所有舵机为最小角度
-    for (uint8_t layer = 0; layer < totalLayers; layer++) {
+    for (uint8_t layer = 0; layer < totalServoLayers; layer++) {
         if (useInternalPWM) {
             ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(layer, 0);
         } else {
@@ -371,7 +469,7 @@ void SerialController::executeStandbyMode() {
         }
     }
     
-    // 蓝色呼吸灯效果
+    // 蓝色呼吸灯效果（所有层相同颜色）
     uint32_t blueColor = 0x0000FF; // 纯蓝色
     lightBelt->breathing(blueColor, 3000); // 3秒周期的呼吸效果
 }

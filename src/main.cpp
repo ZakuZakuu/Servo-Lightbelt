@@ -6,18 +6,19 @@
 #include <SerialController.h>
 #include "GlobalConfig.h"
 
-#define LED_PIN 5
-#define LAYER_COUNT 12 // 舵机层数
+#define LED_PIN 5   // LED灯带数据引脚
+#define SERVO_LAYER_COUNT 6 // 舵机层数
+#define LED_LAYER_COUNT 12 // 每层舵机数量
 #define LEDS_PER_LAYER 33 // 每层LED数量
 #define CYCLE_TIME 5000  // 5秒周期
 
-LightBelt belt(LED_PIN, LAYER_COUNT, LEDS_PER_LAYER);
+LightBelt belt(LED_PIN, LED_LAYER_COUNT, LEDS_PER_LAYER);
 
 // 根据配置选择不同的舵机平台
 #if USE_INTERNAL_PWM
 ServoPlatformInter platform(LAYER_COUNT);
 #else
-ServoPlatform platform(LAYER_COUNT);
+ServoPlatform platform(SERVO_LAYER_COUNT);
 #endif
 
 // 根据配置选择不同的通信控制器

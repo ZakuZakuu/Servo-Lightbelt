@@ -81,6 +81,12 @@ public:
      * @return 当前最大亮度值(0.0-1.0)
      */
     float getMaxBrightness() const;
+
+    /**
+     * @brief 获取灯带的层数
+     * @return 灯带的层数
+     */
+    uint8_t getLayers() const { return layers; }
 };
 
 #endif
