@@ -7,8 +7,8 @@
 #include "GlobalConfig.h"
 
 #define LED_PIN 5
-#define LAYER_COUNT 6
-#define LEDS_PER_LAYER 66
+#define LAYER_COUNT 12 // 舵机层数
+#define LEDS_PER_LAYER 33 // 每层LED数量
 #define CYCLE_TIME 5000  // 5秒周期
 
 LightBelt belt(LED_PIN, LAYER_COUNT, LEDS_PER_LAYER);

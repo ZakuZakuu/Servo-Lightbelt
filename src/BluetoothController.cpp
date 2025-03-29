@@ -155,7 +155,9 @@ void BluetoothController::update() {
             totalLayers = ((ServoPlatform*)servoPlatform)->getLayers();
         }
         
-        const uint32_t layerCooldownTime = 5000;  // 每层冷却时间5秒
+        // 计算每层冷却时间 = 总时间 / 层数
+        const uint32_t totalCooldownTime = 30000;  // 总冷却时间30秒
+        const uint32_t layerCooldownTime = totalCooldownTime / totalLayers;  // 每层冷却时间
         const uint32_t orangeColor = 0xFF8800;  // 橙黄色
         
         // 如果是第一次执行或刚刚重置
@@ -177,6 +179,11 @@ void BluetoothController::update() {
             // 记录开始时间
             startTime = millis();
             Serial.println("Cooldown mode started - all layers set to maximum");
+            Serial.print("Total cooldown time: ");
+            Serial.print(totalCooldownTime / 1000);
+            Serial.print("s, Time per layer: ");
+            Serial.print(layerCooldownTime / 1000);
+            Serial.println("s");
         }
         
         // 如果当前层有效
@@ -223,7 +230,10 @@ void BluetoothController::update() {
                 
                 if (currentLayer < totalLayers) {
                     Serial.print("Cooling down layer ");
-                    Serial.println(totalLayers - currentLayer);
+                    Serial.print(totalLayers - currentLayer);
+                    Serial.print(" (");
+                    Serial.print((currentLayer) * 100 / totalLayers);
+                    Serial.println("% completed)");
                 }
             }
         } else {
