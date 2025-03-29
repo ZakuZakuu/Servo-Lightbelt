@@ -277,33 +277,43 @@ void BluetoothController::update() {
             }
         }
     } else if (currentMode == "Follow") {
+        // 获取舵机层数
+        uint8_t totalLayers = 0;
+        if (useInternalPWM) {
+            totalLayers = ((ServoPlatformInter*)servoPlatform)->getLayers();
+        } else {
+            totalLayers = ((ServoPlatform*)servoPlatform)->getLayers();
+        }
+        
         // 在Follow模式下，根据接收到的参数实时设置舵机角度和灯光效果
-        for (int i = 0; i < 6; i++) {
-            if (i < 3) {  // 假设最多支持6层，但目前只使用3层
-                if (useInternalPWM) {
-                    ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(i, params[i]);
-                } else {
-                    ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(i, params[i]);
-                }
-                
-                // 添加灯带灯光效果
-                // 1. 亮度和Follow参数成正比
-                uint8_t brightness = map(params[i], 0, 1023, 0, 255);
-                
-                // 2. 蓝色程度和参数成正比，越大越蓝，越小越白
-                // 从白色(0xFFFFFF)到蓝色(0x0000FF)的渐变
-                uint8_t blueValue = 255;  // 蓝色分量保持255
-                uint8_t whiteValue = 255 - map(params[i], 0, 1023, 0, 255);  // 红绿分量随参数减小
-                
-                // 构建RGB颜色
-                uint32_t color = (whiteValue << 16) | (whiteValue << 8) | blueValue;
-                
-                // 调整亮度
-                uint32_t adjustedColor = lightBelt->dimColor(color, brightness);
-                
-                // 设置灯带颜色
-                lightBelt->setLayerColor(i, adjustedColor);
+        for (int i = 0; i < totalLayers && i < 6; i++) {
+            // 层号反向映射：第一位对应最后一层，以此类推
+            int reversedLayer = totalLayers - 1 - i;
+            
+            // 设置舵机角度
+            if (useInternalPWM) {
+                ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(reversedLayer, params[i]);
+            } else {
+                ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(reversedLayer, params[i]);
             }
+            
+            // 添加灯带灯光效果
+            // 1. 亮度和Follow参数成正比
+            uint8_t brightness = map(params[i], 0, 1023, 0, 255);
+            
+            // 2. 蓝色程度和参数成正比，越大越蓝，越小越白
+            // 从白色(0xFFFFFF)到蓝色(0x0000FF)的渐变
+            uint8_t blueValue = 255;  // 蓝色分量保持255
+            uint8_t whiteValue = 255 - map(params[i], 0, 1023, 0, 255);  // 红绿分量随参数减小
+            
+            // 构建RGB颜色
+            uint32_t color = (whiteValue << 16) | (whiteValue << 8) | blueValue;
+            
+            // 调整亮度
+            uint32_t adjustedColor = lightBelt->dimColor(color, brightness);
+            
+            // 设置灯带颜色（同样使用反向映射的层号）
+            lightBelt->setLayerColor(reversedLayer, adjustedColor);
         }
     }
 }

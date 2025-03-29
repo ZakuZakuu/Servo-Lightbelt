@@ -106,12 +106,24 @@ void SerialController::update() {
         executeStandbyMode();
     }
     else if (modeEquals("Follow")) {
-        // 实时控制舵机角度
-        for (int i = 0; i < 6; i++) {
+        // 获取舵机层数
+        uint8_t totalLayers = 0;
+        if (useInternalPWM) {
+            totalLayers = ((ServoPlatformInter*)servoPlatform)->getLayers();
+        } else {
+            totalLayers = ((ServoPlatform*)servoPlatform)->getLayers();
+        }
+        
+        // 实时控制舵机角度和灯光效果
+        for (int i = 0; i < totalLayers && i < 6; i++) {
+            // 层号反向映射：第一位对应最后一层，以此类推
+            int reversedLayer = totalLayers - 1 - i;
+            
+            // 设置舵机角度
             if (useInternalPWM) {
-                ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(i, params[i]);
+                ((ServoPlatformInter*)servoPlatform)->setLayerAngleFromValue(reversedLayer, params[i]);
             } else {
-                ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(i, params[i]);
+                ((ServoPlatform*)servoPlatform)->setLayerAngleFromValue(reversedLayer, params[i]);
             }
             
             // 添加灯带灯光效果
@@ -129,8 +141,8 @@ void SerialController::update() {
             // 调整亮度
             uint32_t adjustedColor = lightBelt->dimColor(color, brightness);
             
-            // 设置灯带颜色
-            lightBelt->setLayerColor(i, adjustedColor);
+            // 设置灯带颜色（同样使用反向映射的层号）
+            lightBelt->setLayerColor(reversedLayer, adjustedColor);
         }
     }
 }
